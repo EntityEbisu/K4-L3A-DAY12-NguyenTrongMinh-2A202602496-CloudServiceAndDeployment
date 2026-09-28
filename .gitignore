@@ -23,6 +23,7 @@ Thumbs.db
 
 # Log deploy của Render — file sinh ra khi deploy thật, không phải bài nộp
 error_logs/
+logs/
 
 # Tài liệu nội bộ của giảng viên — không đẩy lên repo phát cho học viên
 solution/
