@@ -36,7 +36,11 @@ class RateLimiter:
              ``self.client.zremrangebyscore(key, 0, now - WINDOW_SECONDS)``
           3. Trả về ``self.client.zcard(key)``
         """
-        raise NotImplementedError("TODO (CP3): cài đặt hit_count")
+        now = now if now is not None else time.time()
+        key = self._key(user_id)
+        # Vứt các request đã trượt khỏi cửa sổ 60s, rồi đếm phần còn lại.
+        self.client.zremrangebyscore(key, 0, now - WINDOW_SECONDS)
+        return int(self.client.zcard(key))
 
     def check(self, user_id: str, now: float | None = None) -> None:
         """Cho qua nếu còn quota, ngược lại raise 429.
@@ -56,4 +60,20 @@ class RateLimiter:
         Lưu ý thứ tự: **kiểm tra trước, ghi nhận sau**. Ghi trước rồi mới đếm
         sẽ chặn nhầm ngay ở request thứ ``limit``.
         """
-        raise NotImplementedError("TODO (CP3): cài đặt check")
+        now = now if now is not None else time.time()
+        key = self._key(user_id)
+
+        # Kiểm tra TRƯỚC, ghi nhận SAU. Ghi trước rồi mới đếm sẽ chặn nhầm
+        # ngay ở request thứ `limit`.
+        if self.hit_count(user_id, now) >= self.limit:
+            raise HTTPException(
+                status_code=429,
+                detail="rate limit exceeded",
+                headers={"Retry-After": str(WINDOW_SECONDS)},
+            )
+
+        # Member phải DUY NHẤT: hai request cùng timestamp sẽ ghi đè nhau
+        # trong sorted set và ta đếm thiếu. Timestamp + uuid4 là duy nhất.
+        self.client.zadd(key, {f"{now}:{uuid.uuid4().hex}": now})
+        # expire: key tự dọn sau 60s không hoạt động, Redis không đầy dần.
+        self.client.expire(key, WINDOW_SECONDS)
