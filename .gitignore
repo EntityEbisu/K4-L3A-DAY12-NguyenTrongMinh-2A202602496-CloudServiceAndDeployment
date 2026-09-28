@@ -25,6 +25,9 @@ Thumbs.db
 error_logs/
 logs/
 
+# Báo cáo làm việc nội bộ — tự lưu để đối chiếu, không phải thành phần nộp bài
+documents/
+
 # Tài liệu nội bộ của giảng viên — không đẩy lên repo phát cho học viên
 solution/
 
