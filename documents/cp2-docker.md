@@ -32,17 +32,19 @@ nên nếu để skip thì mất điểm thật chứ không phải "không bị
 
 ## Kết quả build thật
 
+**So sánh 2 bản** (bản 1 stage lấy từ `git show 306b897:Dockerfile` — đúng
+Dockerfile gốc của lab):
+
 ```
+$ docker build -f <Dockerfile gốc 1-stage> -t agent:single .
 $ docker build -t day12-agent:prod .
-...
-#14 exporting to image
-#14 DONE 7.6s
 
-$ docker images day12-agent:prod --format "{{.Size}}"
-310MB
+REPOSITORY:TAG        SIZE
+agent:single          1.73GB
+day12-agent:prod      310MB
 ```
 
-**310MB < giới hạn 500MB.**
+**310MB < giới hạn 500MB.** Bản multi-stage nhỏ hơn **5.6 lần**.
 
 ## Đã làm
 

@@ -75,22 +75,66 @@ Dán output của các lệnh trên vào đây:
 ```
 $ curl -i https://day12-agent-3gtj.onrender.com/health
 HTTP/1.1 200 OK
+Date: Mon, 28 Sep 2026 13:24:18 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+rndr-id: 649c7789-c7e9-4add
+Server: cloudflare
+vary: Accept-Encoding
 x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+CF-RAY: a423114cfaac84a9-HKG
+alt-svc: h3=":443"; ma=86400
+
 {"status":"ok","service":"day12-agent","version":"1.0.0"}
 
 $ curl -i https://day12-agent-3gtj.onrender.com/ready
 HTTP/1.1 200 OK
+Date: Mon, 28 Sep 2026 13:24:19 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+rndr-id: 3d3c63fc-8e87-46cf
+Server: cloudflare
+vary: Accept-Encoding
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+CF-RAY: a42311515e6902cc-HKG
+alt-svc: h3=":443"; ma=86400
+
 {"status":"ready","redis":true}
 
 $ curl -i -X POST https://day12-agent-3gtj.onrender.com/ask \
     -H "Content-Type: application/json" -d "{\"question\":\"Hello\"}"
 HTTP/1.1 401 Unauthorized
+Date: Mon, 28 Sep 2026 13:24:19 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+cf-cache-status: DYNAMIC
+rndr-id: bada764b-89ab-4e1e
+Server: cloudflare
+vary: Accept-Encoding
+x-render-origin-server: uvicorn
+CF-RAY: a4231155bee5983b-HKG
+alt-svc: h3=":443"; ma=86400
+
 {"detail":"invalid or missing API key"}
 ```
 
-`/ready` trả 200 là bằng chứng biến `REDIS_URL` đã được Render gắn vào
-service và service đã nối được tới Key Value. `/ask` trả 401 là bằng chứng
-`AGENT_API_KEY` đang có hiệu lực: không có khoá thì không ai gọi được LLM.
+**Ý nghĩa từng kết quả:**
+
+- `/health` → **200**: liveness trả lời được mà không hề chạm vào Redis — cũng
+  chính là endpoint mà `render.yaml` khai báo làm `healthCheckPath`.
+- `/ready` → **200** với `"redis":true`: bằng chứng biến `REDIS_URL` đã được
+  Render tự gắn từ Key Value `day12-redis` qua `fromService`, và app đã nối
+  được tới Redis thật. Nếu biến này sai, đây là chỗ sẽ trả 503.
+- `/ask` không khoá → **401** với `invalid or missing API key`: bằng chứng
+  `AGENT_API_KEY` trên Render **đang có hiệu lực**. Nếu khoá sai, mọi request
+  cũng 401 — nhưng khi đó ta không phân biệt được "khoá sai" với "khoá đúng
+  nhưng hết hạn". Kiểm tra `/ready` 200 cùng lúc giúp xác nhận service thật
+  sự đang chạy bình thường.
 
 ## Ảnh Chụp Màn Hình
 

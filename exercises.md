@@ -13,8 +13,8 @@
 > thích để bạn đối chiếu. `grade.py` chỉ đếm số câu đã thay placeholder, nhưng
 > RUBRIC.md ghi rõ chất lượng nội dung **do giảng viên chấm tay** và Lab Coach
 > sẽ hỏi trực tiếp. Vì vậy bạn **phải đọc lại và hiểu** từng câu trước khi nộp —
-> câu nào bạn thấy chưa ổn thì viết lại bằng lời của mình. Những chỗ đánh dấu
-> **[CẦN ĐO]** là phần còn thiếu số liệu, xem "Việc còn lại" ở cuối file.
+> câu nào bạn thấy chưa ổn thì viết lại bằng lời của mình. Mọi số liệu dẫn ra
+> dưới đây đều là **kết quả chạy thật** dán từ terminal, không phải ước lượng.
 
 ---
 
@@ -82,32 +82,44 @@ docker images | grep agent
 
 | Bản | Dung lượng |
 |-----|-----------|
-| 1 stage (bản đầu) | **[CẦN ĐO — xem Việc còn lại]** |
+| 1 stage (bản đầu) | **1.73GB** |
 | Multi-stage | **310MB** |
 
 Giải thích: phần dung lượng chênh lệch đó là những gì?
 
-> **Số đo multi-stage đã có:** 310MB, đo bằng lệnh
-> `docker images day12-agent:prod --format "{{.Size}}"`.
+> **Số đo thật** (đo bằng `docker images --format "{{.Size}}"`):
+> ```
+> $ docker build -f <Dockerfile gốc 1-stage> -t agent:single .
+> $ docker build -t day12-agent:prod .
 >
-> **[CẦN ĐO]** Phần 1 stage chưa đo được vì Docker Desktop đã dừng trong lúc
-> làm bài. Cần chạy lại đúng 3 lệnh trên; bản 1 stage là Dockerfile gốc của lab
-> (`FROM python:3.11`, `COPY . .`, rồi `RUN pip install -r requirements.txt`).
+> REPOSITORY:TAG        SIZE
+> agent:single          1.73GB
+> day12-agent:prod      310MB
+> ```
+> Chênh lệch **1.42GB**, tức bản multi-stage nhỏ hơn khoảng **5.6 lần**.
 >
-> **Phần dung lượng chênh lệch là gì** — giải thích dựa trên cấu trúc
-> Dockerfile của tôi:
-> - **Base image.** Bản gốc dùng `python:3.11` đầy đủ; bản của tôi dùng
->   `python:3.11-slim`. Bản đầy đủ chứa sẵn compiler, header phát triển C, tài
->   liệu — những thứ app chạy production không dùng tới một lần nào.
+> Bản 1 stage được build lại từ đúng Dockerfile gốc của lab (lấy bằng
+> `git show 306b897:Dockerfile`), nên đây là so sánh cùng một bộ source.
+>
+> **Phần dung lượng chênh lệch là gì** — dựa trên cấu trúc hai Dockerfile:
+> - **Base image là thủ phạm lớn nhất.** Bản gốc dùng `python:3.11` **đầy đủ**
+>   (~1.1GB), bản của tôi dùng `python:3.11-slim` (~150MB). Bản đầy đủ chứa
+>   sẵn compiler (gcc), header phát triển C, tài liệu, và nhiều gói hệ thống mà
+>   app chạy production không dùng tới một lần nào.
 > - **Stage `builder` bị vứt bỏ.** Nó chỉ tồn tại lúc build để cài dependency vào
->   `/opt/venv`. Image cuối **không** chứa nó, nên không phải chịu compiler và
->   các gói build sinh ra trong quá trình cài.
+>   `/opt/venv`; image cuối **không** chứa nó, nên không phải chịu compiler và
+>   các gói sinh ra trong quá trình cài.
 > - **Không mang pip cache.** Builder dùng `pip install --no-cache-dir`, và
 >   runtime chỉ `COPY --from=builder /opt/venv /opt/venv` — không copy thư mục
 >   cache tải về.
 > - **Không copy thứ không cần.** Nhờ `.dockerignore`, `tests/`, `screenshots/`,
 >   `documents/`, `.git/` và các file tài liệu lab không nằm trong build
 >   context nên không vào image.
+>
+> Ý nghĩa thực tế: image nhỏ hơn thì kéo về nhanh hơn, và quan trọng hơn là
+> **ít bề mặt tấn công hơn** — không có compiler trong image nghĩa là attacker
+> lỡ chạy được code trong container cũng không có sẵn công cụ để biên dịch
+> payload tiếp.
 
 ---
 
@@ -375,12 +387,12 @@ tìm ra nguyên nhân bằng cách nào, và sửa ra sao?
 1,5 điểm, tổng 10 câu. Cả 10 câu dưới đây đã được thay, nên về mặt đếm số bạn
 đã đủ 15/15. Phần còn lại là chất lượng:
 
-1. **Đo số liệu cho Câu 3** — mục **[CẦN ĐO]**, dung lượng bản 1 stage. Bản
-   multi-stage đã có sẵn: **310MB**. Chạy lại 3 lệnh trong câu đó rồi điền vào
-   bảng, để câu trả lời có cả hai số đo thật.
-2. **Đọc lại từng câu và viết lại bằng lời của bạn** ở câu nào bạn thấy chưa
+1. **Đọc lại từng câu và viết lại bằng lời của bạn** ở câu nào bạn thấy chưa
    ổn. RUBRIC.md nêu rõ chất lượng nội dung **do giảng viên chấm tay**, và
    Lab Coach sẽ hỏi trực tiếp về bất kỳ phần nào. Nộp nguyên văn mà không
    hiểu thì mất điểm phần đó.
-3. **Câu 3 là câu duy nhất còn dựa trên giải thích thay vì số đo thật** — đo
-   được rồi hãy nộp.
+2. **Mọi số liệu trong file này đều là kết quả chạy thật**, dán từ terminal:
+   dung lượng 1.73GB/310MB (Câu 3), dòng log `ask_completed` (Câu 2),
+   `history_length` 0→2→4→6→8→10 trên 3 container (Câu 9), traceback Render
+   (Câu 10). Nếu bạn viết lại, hãy giữ nguyên các con số này — chúng là bằng
+   chứng bạn đã thực sự chạy, không phải lý thuyết.
