@@ -6,7 +6,7 @@
 > Cách trả lời: thay dòng placeholder mỗi câu bằng câu trả lời thật.
 > `grade.py` đếm số placeholder còn lại (15 điểm cho 10 câu).
 >
-> Họ và tên: Nguyen Trong Minh  ·  Mã học viên: 2A202602496
+> Họ và tên: Nguyễn Trọng Minh  ·  Mã học viên: 2A202602496
 
 > **Ghi chú về trạng thái file này:** Các câu dưới đây đã được điền sẵn bằng
 > **số liệu thật đo được từ terminal** trong quá trình làm bài, kèm phần giải
