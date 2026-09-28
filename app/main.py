@@ -54,6 +54,27 @@ def get_cost_guard() -> CostGuard:
     return CostGuard(get_redis_client(), get_settings().monthly_budget_usd)
 
 
+@lru_cache(maxsize=1)
+def get_provider():
+    """Chọn LLM theo LLM_MODE — hai provider, cùng interface.
+
+    mock (mặc định): utils/mock_llm.ask_llm — tất định, offline, không tốn
+    tiền. Đây là provider cho test, CI và bản deploy, vì test CP3 khẳng
+    định cost_usd > 0 mỗi lần chạy và runner GitHub không có LMStudio.
+
+    real: app.llm_client.complete — gọi API OpenAI-compatible thật. Dùng ở
+    máy bạn (LMStudio) hoặc trên cloud nếu bạn cấu hình provider ở đó.
+
+    Cùng trả về {answer, tokens_in, tokens_out, cost_usd} nên /ask không cần
+    biết đang nói chuyện với ai.
+    """
+    if get_settings().llm_mode.strip().lower() == "real":
+        from .llm_client import complete
+
+        return complete
+    return ask_llm
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """CHO SẴN — chạy lúc app khởi động và lúc tắt."""
@@ -87,7 +108,11 @@ def health():
     lời câu hỏi "có cần restart container này không?". Nếu nó phụ thuộc
     Redis, Redis chết một nhịp là cả cụm container bị restart theo.
     """
-    raise NotImplementedError("TODO (CP1/CP4): cài đặt /health")
+    if lifecycle.shutting_down:
+        return JSONResponse(
+            status_code=503, content={"status": "shutting_down"}
+        )
+    return {"status": "ok", "service": SERVICE_NAME, "version": SERVICE_VERSION}
 
 
 @app.get("/ready")

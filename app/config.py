@@ -40,9 +40,24 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # TODO (CP1): khai báo 6 trường theo bảng trên, ví dụ:
-    #     port: int = 8000
-    #     agent_api_key: str
+    # 6 trường của CP1. `agent_api_key` cố ý KHÔNG có giá trị mặc định:
+    # thiếu nó thì Settings ném ValidationError lúc khởi động (fail fast),
+    # thay vì app chạy được rồi mới phát hiện ra mình đang mở cửa bằng khoá rỗng.
+    port: int = 8000
+    agent_api_key: str
+    redis_url: str = "redis://localhost:6379/0"
+    rate_limit_per_minute: int = 10
+    monthly_budget_usd: float = 10.0
+    log_level: str = "INFO"
+
+    # ── LLM provider ───────────────────────────────────────────
+    # llm_mode=mock (mặc định) → utils/mock_llm.py: tất định, offline, dùng cho
+    # test/CI/bản deploy. llm_mode=real → app/llm_client.py gọi API
+    # OpenAI-compatible. Cùng interface nên /ask hoán đổi được không cần sửa code.
+    llm_mode: str = "mock"
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
 
 
 @lru_cache(maxsize=1)
