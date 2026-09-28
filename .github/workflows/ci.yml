@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cai dependency
+        run: pip install -r requirements.txt
+      # test_cp5.py gọi vào bản deploy đang sống → trong CI luôn đỏ hoặc phải
+      # chờ mạng. test_bonus_cicd.py tự kiểm tra chính workflow này (vòng tròn).
+      - name: Chay test (khong goi service deploy)
+        run: pytest tests/ -v --ignore=tests/test_cp5.py --ignore=tests/test_bonus_cicd.py
+        env:
+          # Runner không có .env. Đây đúng là lợi ích của 12-Factor: cùng code,
+          # môi trường khác nhau chỉ khác biến môi trường.
+          AGENT_API_KEY: ci-dummy
+          REDIS_URL: "fake://"
+          # KHÔNG set LLM_*: runner không có LMStudio, và /ask dùng mock nên
+          # không cần. Mock là mặc định.
+
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Bắt lỗi kiểu "file này chỉ có trên máy tôi" hoặc .dockerignore loại
+      # nhầm thứ cần thiết — hai lỗi đều chỉ lộ ra lúc deploy là quá muộn.
+      - name: Build thu image
+        run: docker build -t day12-agent:ci .
+
+  deploy:
+    name: Deploy len Render
+    # needs: xâu test và build thành dây chuyền. Thiếu dòng này thì chúng chạy
+    # SONG SONG và code hỏng vẫn lên production trong khi test đang đỏ.
+    needs: [test, build]
+    # if: chỉ deploy từ nhánh chính, chỉ khi push, và chỉ khi đã bật cờ.
+    # DEPLOY_ENABLED bật sau khi CP5 xanh — xem Task 7.3.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # Render Deploy Hook là một URL bí mật, không phải API token.
+      - name: Goi Render Deploy Hook
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Smoke test
+        run: |
+          sleep 45
+          # -f trả mã lỗi khi HTTP không phải 2xx → job đỏ khi service chết.
+          curl -fsS "${{ vars.PUBLIC_URL }}/health"
