@@ -35,10 +35,41 @@ services:
       timeout: 3s
       retries: 5
 
-  # TODO (CP2): khai báo service `agent` ở đây
-  # agent:
-  #   build: .
-  #   ...
+  # ── agent: build từ Dockerfile trong repo, chạy non-root ──
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Nội suy ${...}: compose đọc từ .env cùng thư mục. Không bao giờ
+      # viết thẳng giá trị khoá vào file này — file này được commit.
+      AGENT_API_KEY: ${AGENT_API_KEY}
+      # Tên service chính là hostname trong mạng compose. `localhost`
+      # bên trong container là chính container đó, KHÔNG phải Redis.
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-10}
+      MONTHLY_BUDGET_USD: ${MONTHLY_BUDGET_USD:-10.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Mặc định mock: LMStudio ở 127.0.0.1 của máy bạn, container này không
+      # tới được. Muốn dùng LLM thật thì override LLM_MODE=real + base URL
+      # ở đây, ví dụ dịch vụ OpenAI-compatible có TLS.
+      LLM_MODE: ${LLM_MODE:-mock}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    depends_on:
+      redis:
+        # service_healthy: chờ Redis thật sự trả lời PING, không chỉ "đã start"
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   redis-data:
