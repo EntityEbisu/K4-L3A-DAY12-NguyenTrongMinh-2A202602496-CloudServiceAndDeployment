@@ -1,0 +1,37 @@
+# MỞ RỘNG (không chấm điểm) — chạy nhiều instance agent để chứng minh stateless.
+#
+# Vì sao cần file này: trong docker-compose.yml, `ports: "8000:8000"` là cổng
+# HOST. Chỉ một container được giữ cổng đó, nên `docker compose up --scale
+# agent=3` sẽ báo "Bind for 0.0.0.0:8000 failed: port is already allocated".
+#
+# Cách đúng: bỏ cổng host ở các instance thân worker, rồi đặt một nginx
+# (reverse proxy / load balancer) làm cổng vào duy nhất. nginx/nginx.conf
+# đã có sẵn trong repo.
+#
+# Dùng như sau:
+#   docker compose down
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml up -d --scale agent=3
+#   curl http://localhost:8000/health
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml down
+#
+# KHÔNG dùng file này khi chấm CP2: docker-compose.yml mới là file test đọc.
+
+services:
+  agent:
+    # !reset xoá ports khai báo ở docker-compose.yml cho các instance worker.
+    # Chúng chỉ nghe trong mạng nội bộ compose, nginx gọi được chúng theo
+    # tên service — không qua cổng host.
+    ports: !reset null
+    deploy:
+      replicas: 3
+
+  nginx:
+    image: nginx:1-alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      agent:
+        condition: service_healthy
+    restart: unless-stopped
